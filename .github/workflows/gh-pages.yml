@@ -1,0 +1,47 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Compute BASE_PATH for GitHub Pages
+        id: compute_base
+        run: |
+          REPO_NAME="$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)"
+          # If the repo name ends with .github.io it's a user/org site -> root path
+          if [[ "$REPO_NAME" == *.github.io ]]; then
+            echo "BASE_PATH=" >> $GITHUB_ENV
+          else
+            echo "BASE_PATH=/$REPO_NAME" >> $GITHUB_ENV
+          fi
+
+      - name: Build and export
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ env.BASE_PATH }}
+        run: pnpm run export
+
+      - name: Deploy to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: out
+          branch: gh-pages
+          token: ${{ secrets.GITHUB_TOKEN }}
